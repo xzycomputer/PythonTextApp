@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Vowel Recognizer</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+	<!-- <link rel="stylesheet" href="/style.css"> -->
+</head>
+<style>
+	canvas {
+		border: 1px solid black;
+		margin: 10px;
+	}
+
+	button {
+		margin-top: 10px;
+	}
+
+	.page-title {
+		text-align: center;
+		position: relative;
+		color: honeydew;
+		background-color: #00CB3E;
+		padding-top: 1%;
+		padding-bottom: 1%;
+		font-weight: bold;
+		font-family: 'Prompt', sans-serif;
+		border-radius: 10px;
+	}
+
+	.title{
+		padding: 1.5% 15%;
+		margin: 0 auto;
+		text-align: center;
+	}
+	.heading{
+		font-family: 'Varela Round', sans-serif;
+		font-weight: 700;
+		font-size: 3rem;
+		display: inline;
+	}
+
+	.page-content {
+		margin: 0 auto;
+		padding: 2% 15%;
+		padding-bottom: 0;
+	}
+
+</style>
+<body>
+	<h1 class="page-title">Vowel Recognizer</h1>
+
+	<section class="title">
+    <h1 class="heading">Handwritten Vowel Recognition Web App</h1>
+    <p>Convolution Neural Network is trained on MNIST data set in Keras.Further the trained model and weigths are saved as json file and .h5 file.
+    Lastly the model is converted to Tensorflow.js Layer format and though js used for prediction.Source code is available on github.</p>
+  </section>
+
+	<div class="container">
+		<div class="row">
+			<div class="col-md text-center">
+				<canvas id="canvas" width="280" height="280"></canvas>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md text-center">
+				<button id="saveBtn" class="btn btn-success">Save Image</button>
+				<button id="refreshBtn" class="btn btn-danger">Refresh</button>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-md text-center">
+				<div id="output"></div>
+				<div id="conf"></div>
+			</div>
+		</div>
+
+	</div>
+	
+	<script>
+		const canvas = document.getElementById('canvas');
+		const context = canvas.getContext('2d');
+		context.fillStyle = 'black';
+		context.strokeStyle = 'white';
+		context.fillRect(0, 0, canvas.width, canvas.height);
+		let isDrawing = false;
+		let lastX = 0;
+		let lastY = 0;
+		let lineWidth = 30;
+
+		canvas.addEventListener('mousedown', e => {
+			isDrawing = true;
+			[lastX, lastY] = [e.offsetX, e.offsetY];
+		});
+
+		canvas.addEventListener('mousemove', e => {
+			if (isDrawing) {
+				context.beginPath();
+				context.moveTo(lastX, lastY);
+				const points = smoothLine(lastX, lastY, e.offsetX, e.offsetY);
+				points.forEach(point => {
+					context.lineTo(point.x, point.y);
+				});
+				context.lineWidth = lineWidth;
+				context.lineCap = "round";
+				context.stroke();
+				[lastX, lastY] = [e.offsetX, e.offsetY];
+			}
+		});
+
+		canvas.addEventListener('mouseup', () => {
+			isDrawing = false;
+		});
+
+		canvas.addEventListener('mouseout', () => {
+			isDrawing = false;
+		});
+
+		const saveBtn = document.getElementById('saveBtn');
+		saveBtn.addEventListener('click', saveImage);
+
+		const refreshBtn = document.getElementById('refreshBtn');
+		refreshBtn.addEventListener('click', refreshCanvas);
+
+		function saveImage() {
+			const imageBase64 = canvas.toDataURL('image/png');
+			const imageQuality = 1; // Set the image quality
+			const imageType = 'jpeg'; // Set the image type
+			fetch('/save', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: 'imageBase64=' + encodeURIComponent(imageBase64) + '&imageQuality=' + imageQuality + '&imageType=' + imageType
+			})
+				.then(response => response.json())
+				.then(data => {
+					const outputDiv = document.getElementById('output');
+					const confDiv = document.getElementById('conf');
+					outputDiv.innerHTML = `The model predicted the character as ${data.label}`;
+					confDiv.innerHTML = `The model confident is ${data.confident}%`;
+					
+					// out
+				})
+				.catch(error => console.error(error));
+		}
+
+		function refreshCanvas() {
+			context.clearRect(0, 0, canvas.width, canvas.height);
+			context.fillStyle = 'black'; // set the background color to white
+			context.fillRect(0, 0, canvas.width, canvas.height);
+			const outputDiv = document.getElementById('output');
+			outputDiv.innerHTML = '';
+			const confDiv = document.getElementById('conf');
+			confDiv.innerHTML = '';
+		}
+
+		function smoothLine(x1, y1, x2, y2) {
+			const dx = Math.abs(x2 - x1);
+			const dy = Math.abs(y2 - y1);
+			const steps = dx > dy ? dx : dy;
+			const stepX = dx / steps;
+			const stepY = dy / steps;
+
+			let pointX = x1;
+			let pointY = y1;
+			const points = [{ x: pointX, y: pointY }];
+
+			for (let i = 0; i < steps; i++) {
+				pointX += stepX;
+				pointY += stepY;
+
+				const point = { x: pointX, y: pointY };
+				points.push(point);
+			}
+
+			return points;
+		}
+
+
+	</script>
+</body>
+
+</html>
